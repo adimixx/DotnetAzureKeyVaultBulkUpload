@@ -76,7 +76,7 @@ else
 
     if (!keyVals.Any())
     {
-        Console.WriteLine("No of secrets have been imported.");
+        Console.WriteLine("No secrets imported.");
         return;
     }
 

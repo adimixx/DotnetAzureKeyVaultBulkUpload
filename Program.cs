@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
+using Azure;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 
@@ -97,15 +98,40 @@ class Program
 
                 foreach (var kv in keyVals)
                 {
-                    var existingVal = await secretClient.GetSecretAsync(kv.Key);
-                    if (existingVal.HasValue && existingVal.Value.Value == kv.Value)
+                    var notAdded = false;
+                    try
                     {
-                        Console.WriteLine($"Secret NOT synced to KV, Similar value already set : {kv.Key}");
+                        var existingVal = await secretClient.GetSecretAsync(kv.Key);
+                        if (existingVal.HasValue && existingVal.Value?.Value == kv.Value)
+                        {
+                            notAdded = true;
+                        }
                     }
-                    else
+                    catch (RequestFailedException e)
                     {
-                        await secretClient.SetSecretAsync(kv.Key, kv.Value);
-                        Console.WriteLine($"Secret synced to KV : {kv.Key}");
+                        if (e.ErrorCode == "SecretNotFound")
+                        {
+                            Console.WriteLine(e.Message.Split(".")[0]);
+                        }
+                        else
+                        {
+                            Console.WriteLine(e);
+                            throw;
+                        }
+                    }
+                    finally
+                    {
+                        if (notAdded)
+                        {
+                            Console.WriteLine($"Secret NOT synced to KV, Similar value already set : {kv.Key}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Start syncing to KV : {kv.Key}");
+                            await secretClient.SetSecretAsync(kv.Key, kv.Value);
+                            Console.WriteLine($"Secret synced to KV : {kv.Key}");  
+                        }
+                       
                     }
                 }
             }
